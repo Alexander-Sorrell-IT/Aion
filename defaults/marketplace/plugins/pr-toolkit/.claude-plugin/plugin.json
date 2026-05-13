@@ -1,0 +1,14 @@
+{
+  "name": "pr-toolkit",
+  "description": "Pull request review and analysis toolkit. Silent-failure hunter, test-coverage analyzer, type-design analyzer, comment auditor, and a full-PR-review orchestrator.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Aion",
+    "email": "noreply@aion.local"
+  },
+  "keywords": [
+    "pr",
+    "review",
+    "audit"
+  ]
+}

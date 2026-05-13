@@ -1,0 +1,15 @@
+{
+  "name": "observability",
+  "description": "Add structured observability \u2014 logging, tracing, metrics. Not 'add console.log' \u2014 actual instrumentation that's useful in production. Covers what to log, what to trace, what to measure, and what NOT to do.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Aion",
+    "email": "noreply@aion.local"
+  },
+  "keywords": [
+    "logging",
+    "tracing",
+    "metrics",
+    "observability"
+  ]
+}

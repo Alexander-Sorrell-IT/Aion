@@ -1,0 +1,128 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "aion",
+  "description": "Default plugin suite bundled with the framework. Engineering discipline, plugin/skill tooling, project memory management, git workflow, PR review, security audit, MCP-server building, CLI design, deployment, observability, and olympiad math.",
+  "owner": {
+    "name": "Aion",
+    "email": "noreply@aion.local"
+  },
+  "plugins": [
+    {
+      "name": "md-management",
+      "description": "Audit and improve the project memory file (the one auto-loaded each session). Cuts dead content, captures durable session learnings.",
+      "author": {
+        "name": "Aion"
+      },
+      "category": "productivity",
+      "source": "./plugins/md-management"
+    },
+    {
+      "name": "math-olympiad",
+      "description": "Solve competition math (IMO, Putnam, USAMO, AIME) with adversarial verification that catches errors self-verification misses.",
+      "author": {
+        "name": "Aion"
+      },
+      "category": "specialized",
+      "source": "./plugins/math-olympiad"
+    },
+    {
+      "name": "skill-tools",
+      "description": "Create, review, and benchmark skills. Includes skill-creator, skill-reviewer agent, and skill-grader agent.",
+      "author": {
+        "name": "Aion"
+      },
+      "category": "development",
+      "source": "./plugins/skill-tools"
+    },
+    {
+      "name": "plugin-dev",
+      "description": "Build plugins. Skills for each component type, a validator agent, and a /create-plugin scaffolder.",
+      "author": {
+        "name": "Aion"
+      },
+      "category": "development",
+      "source": "./plugins/plugin-dev"
+    },
+    {
+      "name": "core-skills",
+      "description": "Engineering discipline: brainstorming, TDD, debugging, verification, planning, code review, parallel-agent dispatching.",
+      "author": {
+        "name": "Aion"
+      },
+      "category": "productivity",
+      "source": "./plugins/core-skills"
+    },
+    {
+      "name": "doctor",
+      "description": "Health-check the install \u2014 config dir, plugin load failures, marketplace state, memory git, hook validity. Surfaces what's broken before debugging blind.",
+      "author": {
+        "name": "Aion"
+      },
+      "category": "ops",
+      "source": "./plugins/doctor"
+    },
+    {
+      "name": "git-tools",
+      "description": "Git workflow toolkit: commit-message craft, conflict resolution, branch hygiene, /clean-gone command.",
+      "author": {
+        "name": "Aion"
+      },
+      "category": "vcs",
+      "source": "./plugins/git-tools"
+    },
+    {
+      "name": "pr-toolkit",
+      "description": "PR review toolkit. Silent-failure hunter, test-coverage analyzer, type-design analyzer, /review-pr orchestrator.",
+      "author": {
+        "name": "Aion"
+      },
+      "category": "code-review",
+      "source": "./plugins/pr-toolkit"
+    },
+    {
+      "name": "security-review",
+      "description": "Security audit of diffs and codebases. Hunts secrets, injection, auth bypass, crypto mistakes, code-from-data. Severity-calibrated.",
+      "author": {
+        "name": "Aion"
+      },
+      "category": "security",
+      "source": "./plugins/security-review"
+    },
+    {
+      "name": "mcp-server-dev",
+      "description": "Build MCP servers from scratch \u2014 transport selection, tool surface, resource surface, error handling, lifecycle.",
+      "author": {
+        "name": "Aion"
+      },
+      "category": "development",
+      "source": "./plugins/mcp-server-dev"
+    },
+    {
+      "name": "cli-design",
+      "description": "Design good CLI tools \u2014 help text, subcommand structure, flag conventions, error messages, output discipline, exit codes.",
+      "author": {
+        "name": "Aion"
+      },
+      "category": "ux",
+      "source": "./plugins/cli-design"
+    },
+    {
+      "name": "deployment",
+      "description": "Ship code. Dockerfile craft, CI configuration, release tagging and versioning.",
+      "author": {
+        "name": "Aion"
+      },
+      "category": "ops",
+      "source": "./plugins/deployment"
+    },
+    {
+      "name": "observability",
+      "description": "Structured logging, tracing, metrics. Production-grade instrumentation without the usual pitfalls.",
+      "author": {
+        "name": "Aion"
+      },
+      "category": "ops",
+      "source": "./plugins/observability"
+    }
+  ]
+}

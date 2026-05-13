@@ -1,0 +1,14 @@
+{
+  "name": "doctor",
+  "description": "Health-check the CLI install \u2014 config dir, plugin load failures, marketplace state, memory git, hook validity, MCP server reachability. Surfaces what's broken before debugging blind.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Aion",
+    "email": "noreply@aion.local"
+  },
+  "keywords": [
+    "health",
+    "diagnostic",
+    "ops"
+  ]
+}

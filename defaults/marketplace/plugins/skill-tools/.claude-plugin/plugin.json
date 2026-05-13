@@ -1,0 +1,14 @@
+{
+  "name": "skill-tools",
+  "description": "Create, review, and benchmark skills. Includes a skill-creator skill that scaffolds new skills, a skill-reviewer agent that audits skill quality, and a skill-grader agent that scores skills against the trigger-and-follow benchmark.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Aion",
+    "email": "noreply@aion.local"
+  },
+  "keywords": [
+    "skills",
+    "meta",
+    "tooling"
+  ]
+}

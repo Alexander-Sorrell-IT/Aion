@@ -1,0 +1,14 @@
+{
+  "name": "git-tools",
+  "description": "Git workflow toolkit: branch hygiene, conflict resolution, interactive rebase guidance, commit-message craft, and stale-branch cleanup.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Aion",
+    "email": "noreply@aion.local"
+  },
+  "keywords": [
+    "git",
+    "vcs",
+    "workflow"
+  ]
+}

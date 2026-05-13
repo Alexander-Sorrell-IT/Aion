@@ -1,0 +1,15 @@
+{
+  "name": "deployment",
+  "description": "Ship code. Dockerfile design, CI configuration, release tagging, version bumping. Covers the recurring shape of deploying any service-like project.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Aion",
+    "email": "noreply@aion.local"
+  },
+  "keywords": [
+    "deploy",
+    "docker",
+    "ci",
+    "release"
+  ]
+}

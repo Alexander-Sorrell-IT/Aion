@@ -1,0 +1,14 @@
+{
+  "name": "security-review",
+  "description": "Security audit of diffs and codebases. Hunts hardcoded secrets, command/SQL injection patterns, unsafe eval/exec, OWASP issues, and auth bypass classes. Calibrated \u2014 flags real risks, not paranoia.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Aion",
+    "email": "noreply@aion.local"
+  },
+  "keywords": [
+    "security",
+    "audit",
+    "owasp"
+  ]
+}

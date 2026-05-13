@@ -1,0 +1,13 @@
+{
+  "name": "md-management",
+  "description": "Audit and improve the project memory file (PROTEUS.md, CLAUDE.md, or whatever the active brand configures). Cuts dead content, captures durable session learnings, enforces signal-over-noise discipline.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Aion",
+    "email": "noreply@aion.local"
+  },
+  "keywords": [
+    "memory",
+    "documentation"
+  ]
+}

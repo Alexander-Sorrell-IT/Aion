@@ -1,0 +1,15 @@
+{
+  "name": "math-olympiad",
+  "description": "Solve competition math (IMO, Putnam, USAMO, AIME) with a fresh-context adversarial verifier that attacks proofs using specific failure patterns. Outputs calibrated confidence \u2014 declines instead of bluffing.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Aion",
+    "email": "noreply@aion.local"
+  },
+  "keywords": [
+    "math",
+    "olympiad",
+    "proof",
+    "verification"
+  ]
+}

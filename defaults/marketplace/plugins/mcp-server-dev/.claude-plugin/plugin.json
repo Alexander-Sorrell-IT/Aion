@@ -1,0 +1,14 @@
+{
+  "name": "mcp-server-dev",
+  "description": "Build MCP servers (Model Context Protocol). Schema design, transport selection (stdio/SSE/HTTP), tool definitions, resource APIs, common patterns and pitfalls.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Aion",
+    "email": "noreply@aion.local"
+  },
+  "keywords": [
+    "mcp",
+    "server",
+    "protocol"
+  ]
+}

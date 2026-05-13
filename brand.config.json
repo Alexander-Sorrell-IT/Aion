@@ -23,7 +23,21 @@
   "defaults": {
     "_comment": "Auto-installed to ~/<configDir>/ on first install.",
     "plugins": {
-      "install": []
+      "install": [
+        "md-management",
+        "math-olympiad",
+        "skill-tools",
+        "plugin-dev",
+        "core-skills",
+        "doctor",
+        "git-tools",
+        "pr-toolkit",
+        "security-review",
+        "mcp-server-dev",
+        "cli-design",
+        "deployment",
+        "observability"
+      ]
     },
     "skills": {
       "install": []

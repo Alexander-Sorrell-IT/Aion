@@ -1,0 +1,15 @@
+{
+  "name": "plugin-dev",
+  "description": "Build plugins for the framework. Skills for each component type (structure, skills, commands, agents, hooks, MCP, settings), a validator agent, and a /create-plugin scaffolder.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Aion",
+    "email": "noreply@aion.local"
+  },
+  "keywords": [
+    "plugin",
+    "development",
+    "scaffolding",
+    "meta"
+  ]
+}

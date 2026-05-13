@@ -1,0 +1,14 @@
+{
+  "name": "cli-design",
+  "description": "Design good command-line tools. Argument parsing, help text, error messages, exit codes, output formats, scripting-friendliness. Prevents the usual agent-built CLI failure modes (no --help, opaque errors, JSON only when --json is requested).",
+  "version": "1.0.0",
+  "author": {
+    "name": "Aion",
+    "email": "noreply@aion.local"
+  },
+  "keywords": [
+    "cli",
+    "ux",
+    "ergonomics"
+  ]
+}

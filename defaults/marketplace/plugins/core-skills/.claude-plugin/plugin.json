@@ -1,0 +1,16 @@
+{
+  "name": "core-skills",
+  "description": "Engineering discipline skills: brainstorming before building, test-driven development, systematic debugging, verification before claiming done, plan-driven work, code review (giving and receiving), and parallel-agent dispatching.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Aion",
+    "email": "noreply@aion.local"
+  },
+  "keywords": [
+    "tdd",
+    "debugging",
+    "review",
+    "planning",
+    "discipline"
+  ]
+}
