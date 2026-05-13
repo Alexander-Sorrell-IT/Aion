@@ -57,9 +57,25 @@ def _run_task(task: Task, install_dir: Path) -> None:
     try:
         from .agent import Agent
         from .config import load_brand_config
+        from .permissions import PermissionState
+        from . import _PARENT_PERMISSIONS_REF
 
         brand = load_brand_config(install_dir)
-        subagent = Agent(brand=brand)
+
+        # Inherit parent permissions (clone) + force noninteractive since the
+        # background thread can't show prompts to the user.
+        parent_perms = _PARENT_PERMISSIONS_REF[0] if _PARENT_PERMISSIONS_REF else None
+        if parent_perms:
+            sub_perms = PermissionState(
+                auto_accept_edits=parent_perms.auto_accept_edits,
+                bypass_permissions=parent_perms.bypass_permissions,
+                plan_mode=parent_perms.plan_mode,
+                tool_overrides=dict(parent_perms.tool_overrides),
+                noninteractive=True,
+            )
+        else:
+            sub_perms = PermissionState(noninteractive=True)
+        subagent = Agent(brand=brand, permissions=sub_perms)
         # Note: no streaming hook wiring; tasks run silently and we read the
         # result after they finish.
         result_text = subagent.execute(task.prompt)

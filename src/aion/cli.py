@@ -319,6 +319,12 @@ def _build_agent(install_dir: str | None, *, noninteractive: bool = False) -> tu
     from .tier2_tools import set_permission_state
     set_permission_state(permissions)
 
+    # Wire the parent permission state so subagent-spawning tools (agent_dispatch,
+    # task_create) can inherit it for their subagents. Without this, subagents
+    # run with permissions=None which bypasses the gate entirely.
+    from . import set_parent_permissions
+    set_parent_permissions(permissions)
+
     # Wire tier3 tools that need references to plugins/MCP.
     from .tier3_tools import set_mcp_manager, set_skills_ref
     set_mcp_manager(mcp_manager)

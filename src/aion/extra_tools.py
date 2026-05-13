@@ -464,10 +464,27 @@ def _tool_agent_dispatch(prompt: str, description: str = "") -> ToolResult:
     except Exception as e:  # noqa: BLE001
         return ToolResult(ok=False, content=f"failed to load brand: {e}")
 
-    # Build a minimal subagent — no UI hooks, no permission gate (inherits the
-    # default which allows everything except shell in non-interactive; close
-    # to the right behavior for an automation context).
-    subagent = Agent(brand=brand)
+    # Build the subagent with INHERITED permissions. Subagents run synchronously
+    # (parent is blocked) but they spawn fresh contexts that can't show prompts
+    # to the user. The right shape is:
+    #   - Inherit parent's flag values (auto_accept_edits, bypass, plan_mode)
+    #   - Force noninteractive=True so the gate auto-allows where safe and
+    #     blocks shell/external tools that would need a prompt
+    #   - Subagent has its own tool_overrides dict (clone, not shared reference)
+    from .permissions import PermissionState
+    from . import _PARENT_PERMISSIONS_REF
+    parent_perms = _PARENT_PERMISSIONS_REF[0] if _PARENT_PERMISSIONS_REF else None
+    if parent_perms:
+        sub_perms = PermissionState(
+            auto_accept_edits=parent_perms.auto_accept_edits,
+            bypass_permissions=parent_perms.bypass_permissions,
+            plan_mode=parent_perms.plan_mode,
+            tool_overrides=dict(parent_perms.tool_overrides),  # copy, not share
+            noninteractive=True,  # subagent can't prompt
+        )
+    else:
+        sub_perms = PermissionState(noninteractive=True)
+    subagent = Agent(brand=brand, permissions=sub_perms)
 
     framed_prompt = prompt
     if description:
