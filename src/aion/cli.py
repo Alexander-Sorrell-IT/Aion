@@ -96,9 +96,34 @@ def _make_ui_hooks():
     return on_think, on_assistant_text, on_tool_result
 
 
+def _set_terminal_title(title: str) -> None:
+    """Set the terminal tab/window title via OSC escape sequence.
+
+    Works on most POSIX terminals (xterm, gnome-terminal, iTerm2, kitty,
+    Alacritty, tmux, etc.). On Windows console (conhost), there's no OSC
+    support — that's handled by ConPTY for modern Windows but silently
+    ignored on legacy. Either way safe to emit.
+
+    Honors AION_DISABLE_TERMINAL_TITLE — users can opt out if their
+    terminal misbehaves (rare).
+    """
+    import os as _os
+    import sys as _sys
+    if _os.environ.get("AION_DISABLE_TERMINAL_TITLE"):
+        return
+    try:
+        # OSC 0 sets both icon name and window title; 2 is window title only.
+        # 0 is the broader-coverage choice.
+        _sys.stdout.write(f"\x1b]0;{title}\x07")
+        _sys.stdout.flush()
+    except Exception:
+        pass
+
+
 def _repl(agent: Agent, brand: BrandConfig) -> None:
     from .permissions import status_short
 
+    _set_terminal_title(brand.display)
     _print_header(brand)
     if agent.hooks:
         agent.hooks.session_start()
