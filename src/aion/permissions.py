@@ -41,12 +41,29 @@ class ToolKind(Enum):
 
 
 _DEFAULT_TOOL_KINDS: dict[str, ToolKind] = {
+    # Built-ins (tools.py)
     "read":  ToolKind.READ_ONLY,
     "grep":  ToolKind.READ_ONLY,
     "glob":  ToolKind.READ_ONLY,
     "write": ToolKind.FILE_WRITE,
     "edit":  ToolKind.FILE_WRITE,
     "bash":  ToolKind.SHELL,
+
+    # Extras (extra_tools.py) — network-reading is closer to read-only than
+    # to shell. The agent reads a URL or query result; no system side effects.
+    "webfetch":       ToolKind.READ_ONLY,
+    "websearch":      ToolKind.READ_ONLY,
+    "todo_write":     ToolKind.READ_ONLY,  # session state only
+    "ask_user":       ToolKind.READ_ONLY,  # user-driven; safe
+    "agent_dispatch": ToolKind.EXTERNAL,   # spawns a subagent with its own tools
+
+    # Tasks (tasks.py) — background subagents
+    "task_create": ToolKind.EXTERNAL,
+    "task_list":   ToolKind.READ_ONLY,
+    "task_get":    ToolKind.READ_ONLY,
+    "task_output": ToolKind.READ_ONLY,
+    "task_update": ToolKind.READ_ONLY,
+    "task_stop":   ToolKind.READ_ONLY,
 }
 
 

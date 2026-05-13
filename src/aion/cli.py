@@ -285,8 +285,26 @@ def _build_agent(install_dir: str | None, *, noninteractive: bool = False) -> tu
     # auto-allow-where-safe behavior.
     if not noninteractive:
         agent.on_permission_prompt = _console_permission_prompt
+        # Wire the ask_user tool's callback so the agent can prompt mid-execution.
+        from .extra_tools import set_ask_user_callback
+        set_ask_user_callback(_console_ask_user)
 
     return agent, brand
+
+
+def _console_ask_user(question: str, options: list[str] | None) -> str:
+    """Console-based ask_user callback. Returns the user's answer as a string."""
+    console.print(f"\n[bold cyan]Question:[/bold cyan] {question}")
+    if options:
+        for i, opt in enumerate(options, 1):
+            console.print(f"  {i}. {opt}")
+        choice = console.input("  > ").strip()
+        if choice.isdigit():
+            idx = int(choice) - 1
+            if 0 <= idx < len(options):
+                return options[idx]
+        return choice  # free-form answer
+    return console.input("  > ").strip()
 
 
 def _console_permission_prompt(tool_name: str, arguments: dict, reason: str) -> str:

@@ -344,6 +344,27 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
 ]
 
 
+# Register the extra tools (webfetch, websearch, todo_write, ask_user,
+# agent_dispatch) and the Task* family. Done at import time so the agent's
+# loop sees them in TOOL_SCHEMAS without further wiring.
+def _register_extras() -> None:
+    try:
+        from .extra_tools import EXTRA_TOOL_REGISTRY, EXTRA_TOOL_SCHEMAS
+        TOOL_REGISTRY.update(EXTRA_TOOL_REGISTRY)
+        TOOL_SCHEMAS.extend(EXTRA_TOOL_SCHEMAS)
+    except ImportError:
+        pass
+    try:
+        from .tasks import TASK_TOOL_REGISTRY, TASK_TOOL_SCHEMAS
+        TOOL_REGISTRY.update(TASK_TOOL_REGISTRY)
+        TOOL_SCHEMAS.extend(TASK_TOOL_SCHEMAS)
+    except ImportError:
+        pass
+
+
+_register_extras()
+
+
 def dispatch(name: str, arguments: dict) -> ToolResult:
     """Look up and invoke a tool by name. Returns a ToolResult."""
     fn = TOOL_REGISTRY.get(name)
