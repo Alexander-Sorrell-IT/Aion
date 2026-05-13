@@ -98,25 +98,31 @@ def _make_ui_hooks():
 
 def _repl(agent: Agent, brand: BrandConfig) -> None:
     _print_header(brand)
-    while True:
-        try:
-            user_in = console.input(f"[bold cyan]{brand.binary}>[/bold cyan] ").strip()
-        except (EOFError, KeyboardInterrupt):
-            console.print()
-            break
-        if not user_in:
-            continue
-        if user_in in {"exit", "quit", ":q"}:
-            break
+    if agent.hooks:
+        agent.hooks.session_start()
+    try:
+        while True:
+            try:
+                user_in = console.input(f"[bold cyan]{brand.binary}>[/bold cyan] ").strip()
+            except (EOFError, KeyboardInterrupt):
+                console.print()
+                break
+            if not user_in:
+                continue
+            if user_in in {"exit", "quit", ":q"}:
+                break
 
-        try:
-            agent.execute(user_in)
-        except KeyboardInterrupt:
-            console.print("\n[yellow]interrupted[/yellow]")
-            continue
-        except Exception as e:  # noqa: BLE001 — top-level REPL boundary
-            console.print(f"[red]error: {e}[/red]")
-            continue
+            try:
+                agent.execute(user_in)
+            except KeyboardInterrupt:
+                console.print("\n[yellow]interrupted[/yellow]")
+                continue
+            except Exception as e:  # noqa: BLE001 — top-level REPL boundary
+                console.print(f"[red]error: {e}[/red]")
+                continue
+    finally:
+        if agent.hooks:
+            agent.hooks.session_end()
 
 
 def _one_shot(agent: Agent, prompt: str) -> None:
@@ -128,16 +134,25 @@ def _one_shot(agent: Agent, prompt: str) -> None:
 
 
 def _build_agent(install_dir: str | None) -> tuple[Agent, BrandConfig]:
-    """Resolve install dir, load brand, discover plugins, build agent."""
+    """Resolve install dir, load brand, discover plugins, init memory-git,
+    construct the hook engine, build the agent."""
     install = Path(install_dir) if install_dir else _resolve_install_dir()
     brand = load_brand_config(install)
 
-    # Load every plugin that's both installed AND enabled. Their skills get
-    # advertised in the system prompt; commands/agents loaders wire up later.
+    # Initialize the memory git repo if needed (idempotent — does nothing
+    # if already initialized or if memoryGit.enabled is false).
+    from .memory_git import init_memory_repo
+    init_memory_repo(brand.resolved_config_dir, brand)
+
+    # Load every plugin that's both installed AND enabled.
     from .plugins.discovery import discover_active_plugins
     plugins = discover_active_plugins(brand.resolved_config_dir)
 
-    agent = Agent(brand=brand, plugins=plugins)
+    # Build the hook engine — wires memory-git autocommit + user-defined hooks.
+    from .hooks import make_engine
+    hook_engine = make_engine(brand)
+
+    agent = Agent(brand=brand, plugins=plugins, hooks=hook_engine)
     on_think, on_assistant_text, on_tool_result = _make_ui_hooks()
     agent.on_think = on_think
     agent.on_assistant_text = on_assistant_text

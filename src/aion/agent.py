@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from .config import BrandConfig
+from .hooks import HookEngine
 from .plugins.types import Plugin
 from .tools import TOOL_SCHEMAS, dispatch
 
@@ -108,6 +109,7 @@ class Agent:
     on_assistant_text: Callable[[str], None] | None = None
 
     plugins: list[Plugin] = field(default_factory=list)
+    hooks: HookEngine | None = None
 
     def __post_init__(self) -> None:
         if not self.history:
@@ -189,10 +191,22 @@ class Agent:
 
                 tc_id = getattr(tc, "id", None) if hasattr(tc, "id") else tc.get("id", "")
 
+                # PreToolUse hook — any returned text gets added to context.
+                if self.hooks and tool_name:
+                    pre_msgs = self.hooks.pre_tool_use(tool_name, arguments)
+                    for m in pre_msgs:
+                        self.history.append(Message(role="system", content=m))
+
                 result = dispatch(tool_name or "", arguments)
 
                 if self.on_tool_result:
                     self.on_tool_result(tool_name or "?", arguments, result.content, result.ok)
+
+                # PostToolUse hook — runs memory-git autocommit + user hooks.
+                if self.hooks and tool_name:
+                    post_msgs = self.hooks.post_tool_use(tool_name, arguments, result.ok)
+                    for m in post_msgs:
+                        self.history.append(Message(role="system", content=m))
 
                 self.history.append(
                     Message(
