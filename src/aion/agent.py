@@ -20,8 +20,9 @@ from typing import Any, Callable
 from .config import BrandConfig
 from .hooks import HookEngine
 from .mcp import MCPManager
+from .permissions import PermissionState
 from .plugins.types import Plugin
-from .tools import TOOL_SCHEMAS, dispatch
+from .tools import TOOL_SCHEMAS, ToolResult, dispatch
 
 
 def build_system_prompt(brand: BrandConfig, plugins: list[Plugin] | None = None) -> str:
@@ -112,6 +113,11 @@ class Agent:
     plugins: list[Plugin] = field(default_factory=list)
     hooks: HookEngine | None = None
     mcp: MCPManager | None = None
+    permissions: PermissionState | None = None
+    # UI callback for permission prompts. Receives (tool_name, args, reason)
+    # and returns one of: "allow", "deny", "allow_session", "deny_session".
+    # If not set, defaults to "allow" (no-prompt behavior — backward-compatible).
+    on_permission_prompt: Callable[[str, dict, str], str] | None = None
 
     def __post_init__(self) -> None:
         if not self.history:
@@ -206,14 +212,41 @@ class Agent:
                     for m in pre_msgs:
                         self.history.append(Message(role="system", content=m))
 
-                # Route to MCP if the tool name matches a prefixed MCP tool;
-                # otherwise the built-in dispatcher handles it.
-                if self.mcp and tool_name and self.mcp.can_route(tool_name):
-                    ok, content = self.mcp.dispatch(tool_name, arguments)
-                    from .tools import ToolResult
-                    result = ToolResult(ok=ok, content=content)
+                # Permission gate. If the gate says "should prompt", consult
+                # the UI callback (which the REPL wires up); if no callback,
+                # default-allow so non-interactive callers (one-shot, tests)
+                # don't hang.
+                allow = True
+                deny_reason: str | None = None
+                if self.permissions and tool_name:
+                    should_prompt, reason = self.permissions.gate(tool_name)
+                    if should_prompt:
+                        if self.on_permission_prompt:
+                            decision = self.on_permission_prompt(tool_name, arguments, reason)
+                        else:
+                            # No UI to prompt → allow. Backward-compatible.
+                            decision = "allow"
+                        if decision == "deny":
+                            allow = False
+                            deny_reason = f"User denied: {reason}"
+                        elif decision == "deny_session":
+                            allow = False
+                            deny_reason = f"User denied (session): {reason}"
+                            self.permissions.tool_overrides[tool_name] = "deny_session"
+                        elif decision == "allow_session":
+                            self.permissions.tool_overrides[tool_name] = "allow_session"
+                            # fall through to run
+
+                if allow:
+                    # Route to MCP if the tool name matches a prefixed MCP tool;
+                    # otherwise the built-in dispatcher handles it.
+                    if self.mcp and tool_name and self.mcp.can_route(tool_name):
+                        ok, content = self.mcp.dispatch(tool_name, arguments)
+                        result = ToolResult(ok=ok, content=content)
+                    else:
+                        result = dispatch(tool_name or "", arguments)
                 else:
-                    result = dispatch(tool_name or "", arguments)
+                    result = ToolResult(ok=False, content=deny_reason or "denied")
 
                 if self.on_tool_result:
                     self.on_tool_result(tool_name or "?", arguments, result.content, result.ok)

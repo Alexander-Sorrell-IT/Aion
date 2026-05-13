@@ -97,11 +97,17 @@ def _make_ui_hooks():
 
 
 def _repl(agent: Agent, brand: BrandConfig) -> None:
+    from .permissions import status_short
+
     _print_header(brand)
     if agent.hooks:
         agent.hooks.session_start()
     try:
         while True:
+            # Compact status line above the prompt so the user always knows
+            # the active permission flags.
+            if agent.permissions:
+                console.print(f"[dim]{status_short(agent.permissions)}[/dim]")
             try:
                 user_in = console.input(f"[bold cyan]{brand.binary}>[/bold cyan] ").strip()
             except (EOFError, KeyboardInterrupt):
@@ -111,6 +117,14 @@ def _repl(agent: Agent, brand: BrandConfig) -> None:
                 continue
             if user_in in {"exit", "quit", ":q"}:
                 break
+
+            # Slash commands handled directly by the REPL — they never reach
+            # the LLM. Lightweight; Phase 2 expands this with prompt_toolkit
+            # key bindings for Ctrl+A/B/P + Shift+Tab.
+            if user_in.startswith("/"):
+                handled = _handle_slash_command(user_in, agent, brand)
+                if handled:
+                    continue
 
             try:
                 agent.execute(user_in)
@@ -127,6 +141,83 @@ def _repl(agent: Agent, brand: BrandConfig) -> None:
             agent.mcp.shutdown()
 
 
+def _handle_slash_command(line: str, agent: Agent, brand: BrandConfig) -> bool:
+    """Process REPL-internal slash commands. Returns True if the command was
+    recognized (caller should `continue` the loop). Returns False to let the
+    line fall through to the LLM (for future plugin-provided commands)."""
+    from .permissions import (
+        PRESETS,
+        cycle_preset,
+        find_matching_preset,
+        status_explained,
+    )
+
+    parts = line.strip().split(maxsplit=1)
+    cmd = parts[0].lower()
+    arg = parts[1] if len(parts) > 1 else ""
+
+    if cmd == "/perms":
+        console.print(status_explained())
+        if agent.permissions and agent.permissions.tool_overrides:
+            console.print("\nCurrent tool overrides:")
+            for tool, decision in agent.permissions.tool_overrides.items():
+                console.print(f"  {tool}: {decision}")
+        return True
+
+    if cmd == "/auto":
+        if agent.permissions:
+            agent.permissions.auto_accept_edits = not agent.permissions.auto_accept_edits
+            state = "ON" if agent.permissions.auto_accept_edits else "OFF"
+            console.print(f"[dim]auto-accept edits: {state}[/dim]")
+        return True
+
+    if cmd == "/bypass":
+        if agent.permissions:
+            agent.permissions.bypass_permissions = not agent.permissions.bypass_permissions
+            state = "ON" if agent.permissions.bypass_permissions else "OFF"
+            color = "yellow" if agent.permissions.bypass_permissions else "dim"
+            console.print(f"[{color}]bypass permissions: {state}[/{color}]")
+        return True
+
+    if cmd == "/plan":
+        if agent.permissions:
+            agent.permissions.plan_mode = not agent.permissions.plan_mode
+            state = "ON" if agent.permissions.plan_mode else "OFF"
+            console.print(f"[dim]plan mode: {state}[/dim]")
+        return True
+
+    if cmd == "/preset":
+        if not arg and agent.permissions:
+            # No arg → cycle to next preset
+            preset = cycle_preset(agent.permissions)
+            console.print(f"[dim]preset: {preset.name} — {preset.description}[/dim]")
+            return True
+        if agent.permissions:
+            for p in PRESETS:
+                if p.name.lower() == arg.lower():
+                    agent.permissions.auto_accept_edits = p.auto_accept_edits
+                    agent.permissions.bypass_permissions = p.bypass_permissions
+                    agent.permissions.plan_mode = p.plan_mode
+                    console.print(f"[dim]preset: {p.name} — {p.description}[/dim]")
+                    return True
+            console.print(f"[red]unknown preset '{arg}'[/red]")
+            console.print(f"available: {', '.join(p.name for p in PRESETS)}")
+        return True
+
+    if cmd in {"/help", "/?"}:
+        console.print("Slash commands:")
+        console.print("  /perms                — show permission flags and what they mean")
+        console.print("  /auto                 — toggle auto-accept-edits")
+        console.print("  /bypass               — toggle bypass-permissions (CAUTION)")
+        console.print("  /plan                 — toggle plan mode")
+        console.print("  /preset [name]        — cycle named preset, or jump to named one")
+        console.print("  /help, /?             — this list")
+        console.print("  exit, quit, :q        — leave the REPL")
+        return True
+
+    return False
+
+
 def _one_shot(agent: Agent, prompt: str) -> None:
     try:
         agent.execute(prompt)
@@ -135,7 +226,7 @@ def _one_shot(agent: Agent, prompt: str) -> None:
         sys.exit(1)
 
 
-def _build_agent(install_dir: str | None) -> tuple[Agent, BrandConfig]:
+def _build_agent(install_dir: str | None, *, noninteractive: bool = False) -> tuple[Agent, BrandConfig]:
     """Resolve install dir, load brand, discover plugins, init memory-git,
     construct the hook engine, build the agent."""
     install = Path(install_dir) if install_dir else _resolve_install_dir()
@@ -166,12 +257,63 @@ def _build_agent(install_dir: str | None) -> tuple[Agent, BrandConfig]:
             if err:
                 console.print(f"[yellow]  ⚠ MCP server '{srv_name}' failed to start: {err}[/yellow]")
 
-    agent = Agent(brand=brand, plugins=plugins, hooks=hook_engine, mcp=mcp_manager)
+    # Permission state. Starts at Standard (auto on, bypass off, plan off) —
+    # the daily-driver default that matches typical user expectations. In
+    # non-interactive mode, mark it so the gate auto-allows where it can.
+    from .permissions import PermissionState
+    permissions = PermissionState(
+        auto_accept_edits=True,
+        bypass_permissions=False,
+        plan_mode=False,
+        noninteractive=noninteractive,
+    )
+
+    agent = Agent(
+        brand=brand,
+        plugins=plugins,
+        hooks=hook_engine,
+        mcp=mcp_manager,
+        permissions=permissions,
+    )
     on_think, on_assistant_text, on_tool_result = _make_ui_hooks()
     agent.on_think = on_think
     agent.on_assistant_text = on_assistant_text
     agent.on_tool_result = on_tool_result
+
+    # Interactive mode gets a console-based y/n permission prompt callback.
+    # Non-interactive (one-shot) skips this and relies on the gate's
+    # auto-allow-where-safe behavior.
+    if not noninteractive:
+        agent.on_permission_prompt = _console_permission_prompt
+
     return agent, brand
+
+
+def _console_permission_prompt(tool_name: str, arguments: dict, reason: str) -> str:
+    """Synchronous y/n permission prompt. Used by interactive REPL until
+    Phase 2 wires up prompt_toolkit's richer UI."""
+    # Compact argument preview so the prompt fits on one line for common cases.
+    args_str = ", ".join(f"{k}={v!r}" for k, v in arguments.items())
+    if len(args_str) > 100:
+        args_str = args_str[:100] + "…"
+    console.print(
+        f"[yellow]Permission needed[/yellow]: [bold]{tool_name}[/bold]({args_str})  "
+        f"[dim]— {reason}[/dim]"
+    )
+    console.print(
+        "  [bold]y[/bold]es / [bold]n[/bold]o / [bold]a[/bold]llow-session / [bold]d[/bold]eny-session"
+    )
+    try:
+        choice = console.input("  > ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        return "deny"
+    if choice in {"y", "yes", ""}:
+        return "allow"
+    if choice in {"a", "allow-session", "always"}:
+        return "allow_session"
+    if choice in {"d", "deny-session", "never"}:
+        return "deny_session"
+    return "deny"
 
 
 @click.group(
@@ -215,7 +357,9 @@ def run_cmd(ctx: click.Context, prompt: tuple[str, ...]) -> None:
     """Run a one-shot prompt non-interactively."""
     install_dir = ctx.obj.get("install_dir") if ctx.obj else None
     install_dir_str = str(install_dir) if install_dir else None
-    agent, _ = _build_agent(install_dir_str)
+    # One-shot is non-interactive: gate auto-allows where it can; otherwise
+    # the tool call is denied so the agent doesn't hang on stdin.
+    agent, _ = _build_agent(install_dir_str, noninteractive=True)
     _one_shot(agent, " ".join(prompt))
 
 
