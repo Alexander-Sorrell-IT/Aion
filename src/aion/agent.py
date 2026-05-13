@@ -19,6 +19,7 @@ from typing import Any, Callable
 
 from .config import BrandConfig
 from .hooks import HookEngine
+from .mcp import MCPManager
 from .plugins.types import Plugin
 from .tools import TOOL_SCHEMAS, dispatch
 
@@ -110,6 +111,7 @@ class Agent:
 
     plugins: list[Plugin] = field(default_factory=list)
     hooks: HookEngine | None = None
+    mcp: MCPManager | None = None
 
     def __post_init__(self) -> None:
         if not self.history:
@@ -127,9 +129,16 @@ class Agent:
         if self.on_think:
             self.on_think()
 
+        # Merge built-in tools with any MCP tool schemas so the model sees
+        # both as a single function-list. MCP tools are prefixed mcp_<server>_<name>
+        # so they can never name-clash with built-ins.
+        tools = list(TOOL_SCHEMAS)
+        if self.mcp:
+            tools.extend(self.mcp.tool_schemas())
+
         params: dict[str, Any] = {
             "messages": [m.to_dict() for m in self.history],
-            "tools": TOOL_SCHEMAS,
+            "tools": tools,
         }
         # Model: brand override > env var > litellm default
         model = self.brand.api.model or os.environ.get("AION_MODEL") or "gpt-4o-mini"
@@ -197,7 +206,14 @@ class Agent:
                     for m in pre_msgs:
                         self.history.append(Message(role="system", content=m))
 
-                result = dispatch(tool_name or "", arguments)
+                # Route to MCP if the tool name matches a prefixed MCP tool;
+                # otherwise the built-in dispatcher handles it.
+                if self.mcp and tool_name and self.mcp.can_route(tool_name):
+                    ok, content = self.mcp.dispatch(tool_name, arguments)
+                    from .tools import ToolResult
+                    result = ToolResult(ok=ok, content=content)
+                else:
+                    result = dispatch(tool_name or "", arguments)
 
                 if self.on_tool_result:
                     self.on_tool_result(tool_name or "?", arguments, result.content, result.ok)

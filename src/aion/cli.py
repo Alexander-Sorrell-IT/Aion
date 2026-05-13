@@ -123,6 +123,8 @@ def _repl(agent: Agent, brand: BrandConfig) -> None:
     finally:
         if agent.hooks:
             agent.hooks.session_end()
+        if agent.mcp:
+            agent.mcp.shutdown()
 
 
 def _one_shot(agent: Agent, prompt: str) -> None:
@@ -152,7 +154,19 @@ def _build_agent(install_dir: str | None) -> tuple[Agent, BrandConfig]:
     from .hooks import make_engine
     hook_engine = make_engine(brand)
 
-    agent = Agent(brand=brand, plugins=plugins, hooks=hook_engine)
+    # Discover + spawn MCP servers (user-level + plugin-bundled).
+    from .mcp import MCPManager, load_plugin_mcp_servers, load_user_mcp_servers
+    server_configs = list(load_user_mcp_servers(brand.resolved_config_dir))
+    for p in plugins:
+        server_configs.extend(load_plugin_mcp_servers(p.install_path))
+    mcp_manager = MCPManager(server_configs) if server_configs else None
+    if mcp_manager:
+        start_results = mcp_manager.start_all()
+        for srv_name, err in start_results.items():
+            if err:
+                console.print(f"[yellow]  ⚠ MCP server '{srv_name}' failed to start: {err}[/yellow]")
+
+    agent = Agent(brand=brand, plugins=plugins, hooks=hook_engine, mcp=mcp_manager)
     on_think, on_assistant_text, on_tool_result = _make_ui_hooks()
     agent.on_think = on_think
     agent.on_assistant_text = on_assistant_text
