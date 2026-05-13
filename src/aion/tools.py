@@ -377,6 +377,50 @@ def _register_extras() -> None:
 _register_extras()
 
 
+# ── feature gating ──────────────────────────────────────────────────────────
+
+
+# Maps brand.features.<attr> → list of tool names to remove when that feature
+# is OFF. Built-ins (bash/read/write/edit/grep/glob) are not feature-gated
+# (always-on); they're omitted from this map.
+_FEATURE_TOOL_MAP: dict[str, list[str]] = {
+    "web_access":       ["webfetch", "websearch"],
+    "subagents":        ["agent_dispatch"],
+    "background_tasks": ["task_create", "task_list", "task_get", "task_output",
+                         "task_update", "task_stop"],
+    "todo_tracker":     ["todo_write"],
+    "user_prompts":     ["ask_user"],
+    "notebook_edit":    ["notebook_edit"],
+    "plan_mode":        ["enter_plan_mode", "exit_plan_mode"],
+    "user_config":      ["config_get", "config_set"],
+    "advisor":          ["advisor"],
+    "worktrees":        ["enter_worktree", "exit_worktree"],
+    "summarize":        ["brief"],
+    "skill_invocation": ["skill_invoke"],
+    "tool_search":      ["tool_search"],
+    "scheduling":       ["schedule_at"],
+    "mcp_resources":    ["list_mcp_resources", "read_mcp_resource"],
+    "sleep":            ["sleep"],
+}
+
+
+def apply_feature_filter(features) -> None:
+    """Remove tools whose feature flag is False. Mutates TOOL_REGISTRY and
+    TOOL_SCHEMAS in place — call once at agent-build time, after brand
+    config is loaded."""
+    to_remove: set[str] = set()
+    for feature_attr, tool_names in _FEATURE_TOOL_MAP.items():
+        if not getattr(features, feature_attr, True):
+            to_remove.update(tool_names)
+    if not to_remove:
+        return
+    for name in to_remove:
+        TOOL_REGISTRY.pop(name, None)
+    keep = [s for s in TOOL_SCHEMAS if s.get("function", {}).get("name") not in to_remove]
+    TOOL_SCHEMAS.clear()
+    TOOL_SCHEMAS.extend(keep)
+
+
 def dispatch(name: str, arguments: dict) -> ToolResult:
     """Look up and invoke a tool by name. Returns a ToolResult."""
     fn = TOOL_REGISTRY.get(name)

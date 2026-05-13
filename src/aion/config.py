@@ -62,6 +62,32 @@ class MemoryGitConfig:
 
 
 @dataclass(frozen=True)
+class FeaturesConfig:
+    """Per-capability toggles read from brand.config.json's `features` block.
+    All default to True (ship-enabled). Setting any to false at config time
+    excludes that capability from the runtime tool registry."""
+    web_access: bool = True
+    subagents: bool = True
+    background_tasks: bool = True
+    todo_tracker: bool = True
+    user_prompts: bool = True
+    notebook_edit: bool = True
+    plan_mode: bool = True
+    user_config: bool = True
+    advisor: bool = True
+    worktrees: bool = True
+    summarize: bool = True
+    skill_invocation: bool = True
+    tool_search: bool = True
+    scheduling: bool = True
+    mcp_resources: bool = True
+    sleep: bool = True
+    memory_git: bool = True
+    mcp: bool = True
+    plugins: bool = True
+
+
+@dataclass(frozen=True)
 class BrandConfig:
     binary: str = "aion"
     display: str = "aion"
@@ -73,6 +99,7 @@ class BrandConfig:
     model_identity: ModelIdentityConfig = field(default_factory=ModelIdentityConfig)
     defaults: DefaultsConfig = field(default_factory=DefaultsConfig)
     memory_git: MemoryGitConfig = field(default_factory=MemoryGitConfig)
+    features: FeaturesConfig = field(default_factory=FeaturesConfig)
 
     @property
     def resolved_config_dir(self) -> Path:
@@ -110,6 +137,10 @@ def load_brand_config(install_dir: Path | str) -> BrandConfig:
     identity_raw = raw.get("modelIdentity", {}) or {}
     defaults_raw = raw.get("defaults", {}) or {}
     mg_raw = raw.get("memoryGit", {}) or {}
+    features_raw = raw.get("features", {}) or {}
+
+    def _flag(key: str, default: bool = True) -> bool:
+        return bool(features_raw.get(key, default))
 
     return BrandConfig(
         binary=str(raw.get("binary", "aion")),
@@ -141,5 +172,26 @@ def load_brand_config(install_dir: Path | str) -> BrandConfig:
             branch=str(mg_raw.get("branch", "main")),
             auto_commit=bool(mg_raw.get("autoCommit", True)),
             auto_push=bool(mg_raw.get("autoPush", False)),
+        ),
+        features=FeaturesConfig(
+            web_access=_flag("webAccess"),
+            subagents=_flag("subagents"),
+            background_tasks=_flag("backgroundTasks"),
+            todo_tracker=_flag("todoTracker"),
+            user_prompts=_flag("userPrompts"),
+            notebook_edit=_flag("notebookEdit"),
+            plan_mode=_flag("planMode"),
+            user_config=_flag("userConfig"),
+            advisor=_flag("advisor"),
+            worktrees=_flag("worktrees"),
+            summarize=_flag("summarize"),
+            skill_invocation=_flag("skillInvocation"),
+            tool_search=_flag("toolSearch"),
+            scheduling=_flag("scheduling"),
+            mcp_resources=_flag("mcpResources"),
+            sleep=_flag("sleep"),
+            memory_git=_flag("memoryGit"),
+            mcp=_flag("mcp"),
+            plugins=_flag("plugins"),
         ),
     )

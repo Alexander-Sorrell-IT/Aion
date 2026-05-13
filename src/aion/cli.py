@@ -257,25 +257,38 @@ def _build_agent(install_dir: str | None, *, noninteractive: bool = False) -> tu
     install = Path(install_dir) if install_dir else _resolve_install_dir()
     brand = load_brand_config(install)
 
+    # Apply feature filter to the tool registry early — turns off any tools
+    # whose brand.features.<flag> is false. Called once per process.
+    from .tools import apply_feature_filter
+    apply_feature_filter(brand.features)
+
     # Initialize the memory git repo if needed (idempotent — does nothing
-    # if already initialized or if memoryGit.enabled is false).
-    from .memory_git import init_memory_repo
-    init_memory_repo(brand.resolved_config_dir, brand)
+    # if already initialized, if memoryGit.enabled is false, OR if the
+    # features.memoryGit flag is off).
+    if brand.features.memory_git:
+        from .memory_git import init_memory_repo
+        init_memory_repo(brand.resolved_config_dir, brand)
 
     # Load every plugin that's both installed AND enabled.
-    from .plugins.discovery import discover_active_plugins
-    plugins = discover_active_plugins(brand.resolved_config_dir)
+    # Skip if features.plugins is off.
+    plugins = []
+    if brand.features.plugins:
+        from .plugins.discovery import discover_active_plugins
+        plugins = discover_active_plugins(brand.resolved_config_dir)
 
     # Build the hook engine — wires memory-git autocommit + user-defined hooks.
     from .hooks import make_engine
     hook_engine = make_engine(brand)
 
     # Discover + spawn MCP servers (user-level + plugin-bundled).
-    from .mcp import MCPManager, load_plugin_mcp_servers, load_user_mcp_servers
-    server_configs = list(load_user_mcp_servers(brand.resolved_config_dir))
-    for p in plugins:
-        server_configs.extend(load_plugin_mcp_servers(p.install_path))
-    mcp_manager = MCPManager(server_configs) if server_configs else None
+    # Skip the entire MCP layer if features.mcp is off.
+    mcp_manager = None
+    if brand.features.mcp:
+        from .mcp import MCPManager, load_plugin_mcp_servers, load_user_mcp_servers
+        server_configs = list(load_user_mcp_servers(brand.resolved_config_dir))
+        for p in plugins:
+            server_configs.extend(load_plugin_mcp_servers(p.install_path))
+        mcp_manager = MCPManager(server_configs) if server_configs else None
     if mcp_manager:
         start_results = mcp_manager.start_all()
         for srv_name, err in start_results.items():

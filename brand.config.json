@@ -55,5 +55,27 @@
     "branch": "main",
     "autoCommit": true,
     "autoPush": false
+  },
+  "features": {
+    "_comment": "Each flag toggles a capability. False = tools/UI/state for that feature are excluded at runtime. Slim builds, disable features you don't want users to have.",
+    "webAccess": true,
+    "subagents": true,
+    "backgroundTasks": true,
+    "todoTracker": true,
+    "userPrompts": true,
+    "notebookEdit": true,
+    "planMode": true,
+    "userConfig": true,
+    "advisor": true,
+    "worktrees": true,
+    "summarize": true,
+    "skillInvocation": true,
+    "toolSearch": true,
+    "scheduling": true,
+    "mcpResources": true,
+    "sleep": true,
+    "memoryGit": true,
+    "mcp": true,
+    "plugins": true
   }
 }
