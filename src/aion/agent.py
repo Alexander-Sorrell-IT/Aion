@@ -18,19 +18,23 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from .config import BrandConfig
+from .plugins.types import Plugin
 from .tools import TOOL_SCHEMAS, dispatch
 
 
-def build_system_prompt(brand: BrandConfig) -> str:
-    """Construct the system prompt from brand config.
+def build_system_prompt(brand: BrandConfig, plugins: list[Plugin] | None = None) -> str:
+    """Construct the system prompt from brand config + active plugins.
 
-    Three identity modes:
+    Identity modes:
       off     — generic "You are an AI assistant" prompt
       partial — "You are <display>, a configurable agent CLI." + tagline
       full    — partial + any brand.prompts.prepend additions
 
-    The prepend block always layers on top regardless of mode (it's the user's
-    per-brand identity/personality injection).
+    Skills from active plugins are advertised in a "## Available skills" block
+    so the model knows what description-triggered help is available. The model
+    decides whether to load a skill's body on demand (via a skill-load tool
+    that we'd add in a later iteration); for v0.1 the skill descriptions are
+    visible at all times.
     """
     mode = brand.model_identity.mode
 
@@ -45,9 +49,27 @@ def build_system_prompt(brand: BrandConfig) -> str:
             "you're about to do; after, briefly state what happened."
         )
 
+    parts = [base]
+
+    if plugins:
+        skill_lines: list[str] = []
+        for p in plugins:
+            for s in p.skills:
+                # Only the description goes in the system prompt — bodies are
+                # loaded on-demand to stay light on context.
+                skill_lines.append(f"- **{s.name}** — {s.description}")
+        if skill_lines:
+            parts.append(
+                "## Available skills\n"
+                "These skills are loaded and available. Each was contributed by an "
+                "installed plugin. Use a skill when its description matches the task; "
+                "ignore it otherwise.\n\n" + "\n".join(skill_lines)
+            )
+
+    composed = "\n\n".join(parts)
     if brand.prompts.prepend:
-        return f"{brand.prompts.prepend}\n\n{base}"
-    return base
+        return f"{brand.prompts.prepend}\n\n{composed}"
+    return composed
 
 
 @dataclass
@@ -85,9 +107,16 @@ class Agent:
     # UI hook — invoked when the assistant message has user-facing text content.
     on_assistant_text: Callable[[str], None] | None = None
 
+    plugins: list[Plugin] = field(default_factory=list)
+
     def __post_init__(self) -> None:
         if not self.history:
-            self.history.append(Message(role="system", content=build_system_prompt(self.brand)))
+            self.history.append(
+                Message(
+                    role="system",
+                    content=build_system_prompt(self.brand, self.plugins),
+                )
+            )
 
     def _call_llm(self) -> Any:
         # Lazy import so importing this module doesn't pay the litellm cost.

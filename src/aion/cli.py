@@ -21,6 +21,7 @@ from rich.text import Text
 from . import __version__
 from .agent import Agent
 from .config import BrandConfig, load_brand_config
+from .plugins.cli_commands import plugin_group
 
 
 def _resolve_install_dir() -> Path:
@@ -126,18 +127,43 @@ def _one_shot(agent: Agent, prompt: str) -> None:
         sys.exit(1)
 
 
-@click.command(
+def _build_agent(install_dir: str | None) -> tuple[Agent, BrandConfig]:
+    """Resolve install dir, load brand, discover plugins, build agent."""
+    install = Path(install_dir) if install_dir else _resolve_install_dir()
+    brand = load_brand_config(install)
+
+    # Load every plugin that's both installed AND enabled. Their skills get
+    # advertised in the system prompt; commands/agents loaders wire up later.
+    from .plugins.discovery import discover_active_plugins
+    plugins = discover_active_plugins(brand.resolved_config_dir)
+
+    agent = Agent(brand=brand, plugins=plugins)
+    on_think, on_assistant_text, on_tool_result = _make_ui_hooks()
+    agent.on_think = on_think
+    agent.on_assistant_text = on_assistant_text
+    agent.on_tool_result = on_tool_result
+    return agent, brand
+
+
+@click.group(
     context_settings={"help_option_names": ["-h", "--help"]},
-    add_help_option=True,
+    invoke_without_command=True,
 )
-@click.argument("prompt", required=False, nargs=-1)
 @click.option("--version", "show_version", is_flag=True, help="Print version and exit.")
 @click.option("--install-dir", type=click.Path(exists=True, file_okay=False), help="Override brand install directory (otherwise auto-detected).")
-def main(prompt: tuple[str, ...], show_version: bool, install_dir: str | None) -> None:
+@click.pass_context
+def main(ctx: click.Context, show_version: bool, install_dir: str | None) -> None:
     """Configurable agent CLI.
 
-    Run with no args for an interactive REPL. Pass a quoted prompt for one-shot.
+    Run with no args for an interactive REPL.
+    Run `aion run "<prompt>"` for one-shot.
+    Run `aion plugin list` etc. to manage plugins.
     """
+    # Stash install_dir for subcommands
+    ctx.ensure_object(dict)
+    if install_dir is not None:
+        ctx.obj["install_dir"] = Path(install_dir)
+
     if show_version:
         try:
             install = Path(install_dir) if install_dir else _resolve_install_dir()
@@ -147,19 +173,25 @@ def main(prompt: tuple[str, ...], show_version: bool, install_dir: str | None) -
             click.echo(f"{__version__} (aion — brand.config.json not found)")
         return
 
-    install = Path(install_dir) if install_dir else _resolve_install_dir()
-    brand = load_brand_config(install)
-
-    agent = Agent(brand=brand)
-    on_think, on_assistant_text, on_tool_result = _make_ui_hooks()
-    agent.on_think = on_think
-    agent.on_assistant_text = on_assistant_text
-    agent.on_tool_result = on_tool_result
-
-    if prompt:
-        _one_shot(agent, " ".join(prompt))
-    else:
+    # No subcommand AND no --version → default to REPL.
+    if ctx.invoked_subcommand is None:
+        agent, brand = _build_agent(install_dir)
         _repl(agent, brand)
+
+
+@main.command(name="run")
+@click.argument("prompt", nargs=-1, required=True)
+@click.pass_context
+def run_cmd(ctx: click.Context, prompt: tuple[str, ...]) -> None:
+    """Run a one-shot prompt non-interactively."""
+    install_dir = ctx.obj.get("install_dir") if ctx.obj else None
+    install_dir_str = str(install_dir) if install_dir else None
+    agent, _ = _build_agent(install_dir_str)
+    _one_shot(agent, " ".join(prompt))
+
+
+# Register subcommand groups
+main.add_command(plugin_group)
 
 
 if __name__ == "__main__":
