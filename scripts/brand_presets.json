@@ -1,0 +1,51 @@
+{
+  "_comment": "Provider presets for brand.config.json's api.preset field. Each preset materializes env vars + default model selection in scripts/build.py. Users pick a preset name; build.py expands it.",
+
+  "openai": {
+    "base_url": "https://api.openai.com/v1",
+    "auth_env": "OPENAI_API_KEY",
+    "default_model": "gpt-4o-mini",
+    "labels": {
+      "primary":   { "model": "gpt-4o",        "name": "GPT-4o",        "description": "OpenAI's flagship model — strong general reasoning + tool use" },
+      "fast":      { "model": "gpt-4o-mini",   "name": "GPT-4o mini",   "description": "Cheap and fast" }
+    }
+  },
+
+  "anthropic": {
+    "base_url": "https://api.anthropic.com",
+    "auth_env": "ANTHROPIC_API_KEY",
+    "default_model": "claude-sonnet-4-5",
+    "labels": {
+      "primary":   { "model": "claude-opus-4-7",    "name": "Claude Opus 4.7",   "description": "Anthropic's most capable model" },
+      "fast":      { "model": "claude-haiku-4-5",   "name": "Claude Haiku 4.5",  "description": "Cheap and fast" }
+    }
+  },
+
+  "deepseek": {
+    "base_url": "https://api.deepseek.com/v1",
+    "auth_env": "DEEPSEEK_API_KEY",
+    "default_model": "deepseek-v4-pro",
+    "labels": {
+      "primary":   { "model": "deepseek-v4-pro",    "name": "DeepSeek V4 Pro",   "description": "1.6T MoE, 49B active — for hard problems" },
+      "fast":      { "model": "deepseek-v4-flash",  "name": "DeepSeek V4 Flash", "description": "284B MoE, 13B active — cheap and fast" }
+    }
+  },
+
+  "ollama": {
+    "_comment": "Local model via Ollama. Set base_url to your Ollama server (default localhost:11434).",
+    "base_url": "http://localhost:11434/v1",
+    "auth_env": null,
+    "default_model": "qwen2.5-coder:7b",
+    "labels": {
+      "primary":   { "model": "qwen2.5-coder:7b",   "name": "Qwen2.5 Coder 7B",  "description": "Local — runs on your machine" }
+    }
+  },
+
+  "custom": {
+    "_comment": "Drop-in for any OpenAI-API-compatible endpoint. Set base_url + auth_env in your override fields in brand.config.json.api.",
+    "base_url": null,
+    "auth_env": null,
+    "default_model": null,
+    "labels": {}
+  }
+}

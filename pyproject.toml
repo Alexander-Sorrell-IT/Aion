@@ -1,0 +1,57 @@
+[project]
+name = "aion-cli"
+version = "0.1.0"
+description = "Configurable agent CLI — rebrandable, multi-backend, plugin-driven. Bring your own model, your own brand, your own toolkit."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "aion" }]
+keywords = ["agent", "cli", "llm", "ai", "automation"]
+
+dependencies = [
+  "litellm>=1.50.0",
+  "pydantic>=2.0",
+  "rich>=13.0",
+  "click>=8.1",
+  "pyyaml>=6.0",
+  "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.0"]
+dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.0"]
+
+[project.scripts]
+aion = "aion.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aion"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+
+[tool.pyright]
+# src/ layout: Pyright needs to know packages live under src/ so that
+# `from aion.config import ...` resolves correctly (instead of expecting
+# `from src.aion.config import ...`). Without extraPaths, Pyright reports
+# unresolved imports for every internal module reference.
+include = ["src", "scripts"]
+extraPaths = ["src"]
+pythonVersion = "3.10"
+typeCheckingMode = "basic"
+
+[tool.basedpyright]
+# Mirror the pyright config so users running basedpyright (the strict fork)
+# also resolve imports correctly without flagging false positives.
+include = ["src", "scripts"]
+extraPaths = ["src"]
+pythonVersion = "3.10"
+typeCheckingMode = "basic"

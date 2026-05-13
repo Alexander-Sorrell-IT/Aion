@@ -1,0 +1,45 @@
+{
+  "_comment": "Brand config for aion. Read at build time by scripts/build.py. Edit + reinstall to rebrand the CLI's name, identity, default plugins, and behavior. Same shape as Proteus's brand.config.json so the two systems share concepts.",
+  "binary": "aion",
+  "display": "aion",
+  "tagline": "Configurable agent CLI",
+  "version": {
+    "base": "0.1.0",
+    "preset": "alpha"
+  },
+  "configDir": "~/.aion",
+  "api": {
+    "_comment": "Provider selection. Materialized to .env-active by build. API keys live separately in .env-secret (NOT tracked).",
+    "preset": "openai"
+  },
+  "prompts": {
+    "_comment": "Injected BEFORE the base system prompt. Empty = default behavior.",
+    "prepend": ""
+  },
+  "modelIdentity": {
+    "_comment": "off = base 'You are an AI assistant' prompt. partial/full = brand-rewritten using display + tagline.",
+    "mode": "partial"
+  },
+  "defaults": {
+    "_comment": "Auto-installed to ~/<configDir>/ on first install.",
+    "plugins": {
+      "install": []
+    },
+    "skills": {
+      "install": []
+    },
+    "agents": {
+      "install": []
+    },
+    "memory": {
+      "install": []
+    }
+  },
+  "memoryGit": {
+    "enabled": true,
+    "remote": null,
+    "branch": "main",
+    "autoCommit": true,
+    "autoPush": false
+  }
+}

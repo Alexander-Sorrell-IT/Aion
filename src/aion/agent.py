@@ -1,0 +1,180 @@
+"""Agent loop. The shape:
+
+    1. Receive a user message
+    2. Send conversation history + tool schemas to the LLM
+    3. If the LLM responds with tool calls, dispatch each, append observations
+    4. Loop until the LLM stops calling tools (finish_reason='stop')
+    5. Return control to the user
+
+This is provider-agnostic via litellm — the same loop works against OpenAI,
+Anthropic, DeepSeek, Bedrock, Vertex, local Ollama, etc.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from dataclasses import dataclass, field
+from typing import Any, Callable
+
+from .config import BrandConfig
+from .tools import TOOL_SCHEMAS, dispatch
+
+
+def build_system_prompt(brand: BrandConfig) -> str:
+    """Construct the system prompt from brand config.
+
+    Three identity modes:
+      off     — generic "You are an AI assistant" prompt
+      partial — "You are <display>, a configurable agent CLI." + tagline
+      full    — partial + any brand.prompts.prepend additions
+
+    The prepend block always layers on top regardless of mode (it's the user's
+    per-brand identity/personality injection).
+    """
+    mode = brand.model_identity.mode
+
+    if mode == "off":
+        base = "You are an AI assistant operating as a CLI agent. You have access to tools for running shell commands, reading and writing files, and searching code. Use them deliberately."
+    else:
+        tagline = f" {brand.tagline}" if brand.tagline else ""
+        base = (
+            f"You are {brand.display}, a configurable agent CLI.{tagline} "
+            "You have access to tools for running shell commands, reading and writing files, "
+            "and searching code. Use them deliberately. Before acting, briefly state what "
+            "you're about to do; after, briefly state what happened."
+        )
+
+    if brand.prompts.prepend:
+        return f"{brand.prompts.prepend}\n\n{base}"
+    return base
+
+
+@dataclass
+class Message:
+    """One conversation turn. Mirrors the OpenAI chat-completions shape so we
+    can pass these straight to litellm.completion without transformation."""
+    role: str  # "system" | "user" | "assistant" | "tool"
+    content: str | None = None
+    tool_calls: list[dict] | None = None
+    tool_call_id: str | None = None
+    name: str | None = None
+
+    def to_dict(self) -> dict:
+        d: dict[str, Any] = {"role": self.role}
+        if self.content is not None:
+            d["content"] = self.content
+        if self.tool_calls is not None:
+            d["tool_calls"] = self.tool_calls
+        if self.tool_call_id is not None:
+            d["tool_call_id"] = self.tool_call_id
+        if self.name is not None:
+            d["name"] = self.name
+        return d
+
+
+@dataclass
+class Agent:
+    brand: BrandConfig
+    history: list[Message] = field(default_factory=list)
+    # UI hook — invoked after each tool call so the CLI can render progress.
+    # Receives (tool_name, arguments_dict, result_text, ok).
+    on_tool_result: Callable[[str, dict, str, bool], None] | None = None
+    # UI hook — invoked before each LLM call so the CLI can show a spinner.
+    on_think: Callable[[], None] | None = None
+    # UI hook — invoked when the assistant message has user-facing text content.
+    on_assistant_text: Callable[[str], None] | None = None
+
+    def __post_init__(self) -> None:
+        if not self.history:
+            self.history.append(Message(role="system", content=build_system_prompt(self.brand)))
+
+    def _call_llm(self) -> Any:
+        # Lazy import so importing this module doesn't pay the litellm cost.
+        from litellm import completion  # type: ignore[import-not-found]
+
+        if self.on_think:
+            self.on_think()
+
+        params: dict[str, Any] = {
+            "messages": [m.to_dict() for m in self.history],
+            "tools": TOOL_SCHEMAS,
+        }
+        # Model: brand override > env var > litellm default
+        model = self.brand.api.model or os.environ.get("AION_MODEL") or "gpt-4o-mini"
+        params["model"] = model
+        if self.brand.api.base_url:
+            params["api_base"] = self.brand.api.base_url
+
+        return completion(**params)
+
+    def execute(self, user_text: str) -> str:
+        """Run one user turn to completion. Returns the assistant's final text."""
+        self.history.append(Message(role="user", content=user_text))
+        final_text = ""
+
+        while True:
+            response = self._call_llm()
+            choice = response.choices[0]
+            msg = choice.message
+
+            # Extract assistant content + tool calls
+            content = getattr(msg, "content", None)
+            tool_calls = getattr(msg, "tool_calls", None) or []
+
+            # Record the assistant turn before running any tool calls so the
+            # tool-result messages reference a tool_call_id the model already saw.
+            assistant_msg = Message(
+                role="assistant",
+                content=content,
+                tool_calls=[tc.model_dump() if hasattr(tc, "model_dump") else tc for tc in tool_calls]
+                or None,
+            )
+            self.history.append(assistant_msg)
+
+            if content and self.on_assistant_text:
+                self.on_assistant_text(content)
+            if content:
+                final_text = content
+
+            # No tool calls? Loop done — model is responding to the user, not requesting actions.
+            if not tool_calls:
+                break
+
+            for tc in tool_calls:
+                # litellm normalizes responses but the tool_call shape can vary.
+                # Pull name + arguments defensively.
+                fn = getattr(tc, "function", None) or tc.get("function", {})
+                tool_name = (
+                    getattr(fn, "name", None) if hasattr(fn, "name") else fn.get("name")
+                )
+                raw_args = (
+                    getattr(fn, "arguments", "{}")
+                    if hasattr(fn, "arguments")
+                    else fn.get("arguments", "{}")
+                )
+                try:
+                    arguments = json.loads(raw_args) if isinstance(raw_args, str) else dict(raw_args)
+                except json.JSONDecodeError:
+                    arguments = {}
+
+                tc_id = getattr(tc, "id", None) if hasattr(tc, "id") else tc.get("id", "")
+
+                result = dispatch(tool_name or "", arguments)
+
+                if self.on_tool_result:
+                    self.on_tool_result(tool_name or "?", arguments, result.content, result.ok)
+
+                self.history.append(
+                    Message(
+                        role="tool",
+                        tool_call_id=tc_id,
+                        name=tool_name,
+                        content=result.content,
+                    )
+                )
+
+            # Loop again — the model now sees the tool results and decides
+            # whether to call more tools or respond to the user.
+
+        return final_text
