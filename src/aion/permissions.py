@@ -72,6 +72,17 @@ _DEFAULT_TOOL_KINDS: dict[str, ToolKind] = {
     "config_get":      ToolKind.READ_ONLY,
     "config_set":      ToolKind.FILE_WRITE,  # writes settings.json
     "advisor":         ToolKind.EXTERNAL,    # external LLM call
+
+    # Tier 3 (tier3_tools.py)
+    "sleep":              ToolKind.READ_ONLY,
+    "enter_worktree":     ToolKind.SHELL,        # runs git worktree add (creates files)
+    "exit_worktree":      ToolKind.SHELL,        # runs git worktree remove
+    "brief":              ToolKind.EXTERNAL,     # external LLM call
+    "skill_invoke":       ToolKind.READ_ONLY,    # loads a skill body
+    "tool_search":        ToolKind.READ_ONLY,    # searches local tool registry
+    "schedule_at":        ToolKind.EXTERNAL,     # spawns future agent in background
+    "list_mcp_resources": ToolKind.READ_ONLY,
+    "read_mcp_resource":  ToolKind.READ_ONLY,
 }
 
 

@@ -294,6 +294,15 @@ def _build_agent(install_dir: str | None, *, noninteractive: bool = False) -> tu
     from .tier2_tools import set_permission_state
     set_permission_state(permissions)
 
+    # Wire tier3 tools that need references to plugins/MCP.
+    from .tier3_tools import set_mcp_manager, set_skills_ref
+    set_mcp_manager(mcp_manager)
+    # Flatten skills across all plugins
+    all_skills = []
+    for p in plugins:
+        all_skills.extend(p.skills)
+    set_skills_ref(all_skills)
+
     return agent, brand
 
 
