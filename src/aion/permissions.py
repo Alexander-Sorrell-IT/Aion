@@ -64,6 +64,14 @@ _DEFAULT_TOOL_KINDS: dict[str, ToolKind] = {
     "task_output": ToolKind.READ_ONLY,
     "task_update": ToolKind.READ_ONLY,
     "task_stop":   ToolKind.READ_ONLY,
+
+    # Tier 2 (tier2_tools.py)
+    "notebook_edit":   ToolKind.FILE_WRITE,  # writes a .ipynb file
+    "enter_plan_mode": ToolKind.READ_ONLY,   # state toggle only
+    "exit_plan_mode":  ToolKind.READ_ONLY,
+    "config_get":      ToolKind.READ_ONLY,
+    "config_set":      ToolKind.FILE_WRITE,  # writes settings.json
+    "advisor":         ToolKind.EXTERNAL,    # external LLM call
 }
 
 

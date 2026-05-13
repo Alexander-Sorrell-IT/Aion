@@ -360,6 +360,12 @@ def _register_extras() -> None:
         TOOL_SCHEMAS.extend(TASK_TOOL_SCHEMAS)
     except ImportError:
         pass
+    try:
+        from .tier2_tools import TIER2_TOOL_REGISTRY, TIER2_TOOL_SCHEMAS
+        TOOL_REGISTRY.update(TIER2_TOOL_REGISTRY)
+        TOOL_SCHEMAS.extend(TIER2_TOOL_SCHEMAS)
+    except ImportError:
+        pass
 
 
 _register_extras()

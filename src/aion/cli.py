@@ -289,6 +289,11 @@ def _build_agent(install_dir: str | None, *, noninteractive: bool = False) -> tu
         from .extra_tools import set_ask_user_callback
         set_ask_user_callback(_console_ask_user)
 
+    # Wire the permission state to tier2_tools so enter_plan_mode /
+    # exit_plan_mode can toggle the flag from inside the agent's turn.
+    from .tier2_tools import set_permission_state
+    set_permission_state(permissions)
+
     return agent, brand
 
 
