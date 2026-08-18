@@ -72,7 +72,8 @@ Everything user-facing — binary name, config dir, default provider, default mo
 
 ## License
 
-MIT for the agent core, base tools, and the bundled default plugins. See `LICENSE`.
+[PolyForm Noncommercial 1.0.0](LICENSE) — free for noncommercial use.
+Commercial use requires a paid license: matrixbuilderops@proton.me
 
 Premium plugins and the commercial rebrand toolkit are distributed separately under a source-available commercial-use license. Details with v1.0.
 
