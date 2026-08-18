@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Configurable agent CLI — rebrandable, multi-backend, plugin-driven. Bring your own model, your own brand, your own toolkit."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = { file = "LICENSE" }
 authors = [{ name = "aion" }]
 keywords = ["agent", "cli", "llm", "ai", "automation"]
 
